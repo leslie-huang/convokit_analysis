@@ -1,7 +1,27 @@
 import pandas as pd
+from typing import List
 
 
-def match_qa_pairs(df: pd.DataFrame, drop_nas: bool = False, include_group: bool = False) -> pd.DataFrame:
+def subset_df(
+    df: pd.DataFrame, cluster_subset: List = [], group_subset: List = []
+) -> pd.DataFrame:
+    """
+    For a dataframe where groups are the index levels and
+    cluster labels are the columns,
+    subsets the dataframe by the input lists of values
+    """
+    if cluster_subset:
+        df = df[cluster_subset]  # in the columns
+
+    if group_subset:
+        df = df.loc[group_subset]  # in the index (rows)
+
+    return df
+
+
+def match_qa_pairs(
+    df: pd.DataFrame, drop_nas: bool = False, include_group: bool = False
+) -> pd.DataFrame:
     """
     Match question/answer pairs and their cluster numbers.
     Preserves all NAs with outer join, but can optionally
@@ -18,9 +38,7 @@ def match_qa_pairs(df: pd.DataFrame, drop_nas: bool = False, include_group: bool
 
     question_cluster_assignments = df[df.is_question][q_cols]
 
-    answer_cluster_assignments = df[~df["a_cluster"].isnull()][
-        a_cols
-    ]
+    answer_cluster_assignments = df[df.is_answer][a_cols]
 
     matched_qas = question_cluster_assignments.merge(
         answer_cluster_assignments,
