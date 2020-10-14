@@ -76,7 +76,6 @@ def group_by_cluster_and_speaker(
     """
     @param df dataframe of results
     @param k number of clusters
-    @param rank rank of SVD reduction
     @param cluster_labels optional dict mapping int cluster nums to labels
     @param utterance_subset question or answer
     """
@@ -112,7 +111,6 @@ def group_by_cluster_and_speaker(
 def generate_grouped_plots(
     df: pd.DataFrame,
     k: int,
-    rank: int,
     utterance_subset: str,
     normalize: bool = True,
     cluster_labels: Dict = {},
@@ -124,7 +122,6 @@ def generate_grouped_plots(
     """
     @param df dataframe of results
     @param k number of clusters
-    @param rank rank of SVD reduction
     @param cluster_labels dict mapping int cluster nums to labels
     @param utterance_subset question, answer
     @param savedir dir to save output
@@ -133,17 +130,22 @@ def generate_grouped_plots(
     grouped = group_by_cluster_and_speaker(
         df=df,
         k=k,
-        rank=rank,
         utterance_subset=utterance_subset,
-        cluster_labels=cluster_labels,
+        # cluster_labels=cluster_labels,
     )
+    # do not use cluster_labels because we need to use the cluster nums
+    # in subset_df below
 
     if normalize:
         speaker_pct = grouped[grouped.columns].div(grouped.totals, axis=0)
+        speaker_pct.drop(["totals"], axis=1, inplace=True)
         speaker_pct = subset_df(speaker_pct, cluster_subset, group_subset)
+        speaker_pct.rename(cluster_labels, axis="columns", inplace=True)
         speaker_pct.plot.bar(stacked=False)
     else:
+        grouped.drop(["totals"], axis=1, inplace=True)
         grouped = subset_df(grouped, cluster_subset, group_subset)
+        grouped.rename(cluster_labels, axis="columns", inplace=True)
         grouped.plot.bar(stacked=False)
 
     plt.show()

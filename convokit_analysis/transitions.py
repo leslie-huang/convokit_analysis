@@ -1,7 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from IPython.display import display
 from typing import Dict, List
 
 from convokit_analysis.utils import match_qa_pairs
@@ -9,23 +8,39 @@ from convokit_analysis.utils import match_qa_pairs
 plt.style.use(["science", "grid"])
 
 
-def generate_qa_transition_matrix(df: pd.DataFrame, normalized: bool = True):
+def generate_qa_transition_matrix(
+    df: pd.DataFrame,
+    cluster_labels: Dict = {},
+    normalized: bool = True,
+    fn: str = "mat.pdf",
+):
     """
+    This matrix captures transitions of Question --> Answer (in the same pair)
     Does not include NAs
     """
     matched_qas = match_qa_pairs(df)
+    matched_qas.reset_index(
+        inplace=True
+    )  # making a dummy column so that there is a column left after groupby
     matched_qas = matched_qas.fillna(-1)
-    axis_labels = sorted(matched_qas.a_cluster.unique())
+    if cluster_labels:
+        axis_labels = ["unassigned"] + list(cluster_labels.values())
+    else:
+        axis_labels = ["unassigned"] + sorted(matched_qas.a_cluster.unique())
+
     mat = matched_qas.groupby(["q_cluster", "a_cluster"]).count().unstack()
+    mat = mat.fillna(0)
 
     if normalized:
         mat["totals"] = mat[mat.columns].sum(axis=1)
         mat = mat[mat.columns].div(mat.totals, axis=0)
-        print(mat)
+        # print(mat)
         mat = mat.drop(["totals"], axis=1)
         fmt_type = ".3f"
     else:
         fmt_type = ".1f"
+
+    plt.figure(figsize=(20, 16))
 
     ax = sns.heatmap(
         mat,
@@ -34,16 +49,136 @@ def generate_qa_transition_matrix(df: pd.DataFrame, normalized: bool = True):
         linewidths=0.5,
         cmap="YlGnBu",
         fmt=fmt_type,
+        annot_kws={"size": 20},
     )
     ax.tick_params(length=0)
-    ax.set(xlabel="answer cluster", ylabel="question cluster")
-    ax.set_xticklabels(axis_labels)
+    ax.set_ylabel("Question cluster", fontsize=30)
+    ax.set_xlabel("Answer cluster", fontsize=30)
+    ax.set_xticklabels(
+        axis_labels,
+        rotation=45,
+        horizontalalignment="right",
+        fontdict={"fontsize": 24},
+    )
+    ax.set_yticklabels(
+        axis_labels,
+        rotation=0,
+        horizontalalignment="right",
+        fontdict={"fontsize": 24},
+    )
+
+    plt.savefig(fn)
 
 
 ##################################################
-# Transition matrix methods
+# Transition matrix
 ##################################################
-def subset_hearing(hearing_id: str, df: pd.DataFrame):
+
+
+def generate_transition_matrix(
+    df: pd.DataFrame,
+    state_label: str,
+    utterance_type: str,
+    normalized: bool = False,
+    cluster_labels: Dict = {},
+    fn: str = "mat.pdf",
+):
+    """
+    Generate a transition matrix of raw counts or normalized percents
+    for questions or for answers
+
+    @param df dataframe of results
+    @param state_label could be cluster_num or category
+    @param normalized Compute transition matrix with raw
+    counts or normalized pcts
+    """
+    conversation_roots = df["hearing_id"].unique()
+    transition_counts_clusters = compute_transition_counts(
+        df, state_label, conversation_roots, utterance_type
+    )
+
+    if cluster_labels:
+        axis_labels = list(cluster_labels.values())
+    else:
+        axis_labels = sorted(df.a_cluster.unique())
+
+    from_labels = ["start"] + axis_labels
+    to_labels = axis_labels + ["end"]
+
+    plt.figure(figsize=(20, 16))
+
+    # columns are not necessarily in the right order, fix that
+    transition_counts_clusters = transition_counts_clusters.reindex(
+        sorted(transition_counts_clusters.columns), axis=1
+    )
+
+    if not normalized:
+        # display(transition_counts_clusters)
+
+        ax = sns.heatmap(
+            transition_counts_clusters,
+            center=False,
+            annot=True,
+            linewidths=0.5,
+            cmap="YlGnBu",
+            fmt="g",
+            annot_kws={"size": 20},
+        )
+        ax.tick_params(length=0)
+        ax.set_xticklabels(
+            to_labels,
+            rotation=45,
+            horizontalalignment="right",
+            fontdict={"fontsize": 24},
+        )
+        ax.set_yticklabels(
+            from_labels,
+            rotation=0,
+            horizontalalignment="right",
+            fontdict={"fontsize": 24},
+        )
+        ax.set_ylabel("Transition from", fontsize=30)
+        ax.set_xlabel("Transition to", fontsize=30)
+
+    else:
+        transition_counts_clusters_states_only = mat_states_only(
+            transition_counts_clusters
+        )
+        norm_mat_clusters = mat_normalized_rows(
+            transition_counts_clusters_states_only
+        )
+
+        ax = sns.heatmap(
+            norm_mat_clusters,
+            center=False,
+            annot=True,
+            linewidths=0.5,
+            cmap="YlGnBu",
+            annot_kws={"size": 20},
+        )
+        ax.tick_params(length=0)
+        ax.set_xticklabels(
+            to_labels,
+            rotation=45,
+            horizontalalignment="right",
+            fontdict={"fontsize": 24},
+        )
+        ax.set_yticklabels(
+            from_labels,
+            rotation=0,
+            horizontalalignment="right",
+            fontdict={"fontsize": 24},
+        )
+        ax.set_ylabel("Transition from", fontsize=30)
+        ax.set_xlabel("Transition to", fontsize=30)
+
+    plt.savefig(fn)
+
+
+# Helper functions
+
+
+def subset_hearing(hearing_id: str, df: pd.DataFrame) -> List[Dict]:
     """
     Subsets a df by hearing_id and returns the result as a list of dicts
 
@@ -61,7 +196,7 @@ def subset_hearing(hearing_id: str, df: pd.DataFrame):
 
 def generate_empty_transition_dict(
     states: List, add_init_term_states: bool = True
-):
+) -> Dict:
     """
     Takes an array of states. Returns a dict where keys = start states
     and values = dicts{keys = end states, values = 0
@@ -72,8 +207,8 @@ def generate_empty_transition_dict(
     cluster_names = list(states)
 
     if add_init_term_states:
-        starts = cluster_names + ["start"]
-        ends = cluster_names + ["end"]
+        starts = cluster_names + [-1]
+        ends = cluster_names + [10000]
     else:
         starts = cluster_names
         ends = cluster_names
@@ -87,7 +222,7 @@ def count_transition_probs(
     state_label: str,
     this_hearing_list_of_dicts: List[Dict],
     transition_counts_dict: Dict,
-):
+) -> Dict:
     """
     Iterates through this_hearing_list_of_dicts
     and, for each utterance,
@@ -106,7 +241,7 @@ def count_transition_probs(
 
         # handle special start case
         if i == 0:
-            prev_state = "start"
+            prev_state = -1
 
         else:
             prev_state = this_hearing_list_of_dicts[i - 1][state_label]
@@ -116,7 +251,7 @@ def count_transition_probs(
 
         # Handle end state
         if i == (num_utterances - 1):
-            transition_counts_dict[this_state]["end"] += 1
+            transition_counts_dict[this_state][10000] += 1
 
     return transition_counts_dict
 
@@ -134,9 +269,9 @@ def compute_transition_counts(
     and uses count_transition_probs to add to the transition_dict
     """
     if utterance_type == "question":
-        df = df[df.is_question == 1]
+        df = df[df.is_question]
     else:
-        df = df[df.is_question == 0]
+        df = df[df.is_answer]
     # ignoring any non-fitted utterances within hearings
 
     states = df[state_label].unique()  # list of possible transition states
@@ -165,8 +300,8 @@ def mat_states_only(transition_counts_mat: pd.DataFrame):
     """
 
     transition_counts_mat_states_only = transition_counts_mat.drop(
-        ["start"], axis=0
-    ).drop(["end"], axis=1)
+        [-1], axis=0
+    ).drop([10000], axis=1)
 
     return transition_counts_mat_states_only
 
@@ -190,57 +325,3 @@ def mat_normalized_rows(transition_counts_mat_states_only: pd.DataFrame):
         )
 
     return transition_counts_mat_states_only.drop(["totals"], axis=1)
-
-
-def generate_transition_matrix(
-    df: pd.DataFrame,
-    state_label: str,
-    utterance_type: str,
-    normalized: bool = False,
-):
-    """
-    Generate a transition matrix of raw counts or normalized percents
-
-    @param df dataframe of results
-    @param state_label could be cluster_num or category
-    @param normalized Compute transition matrix with raw
-    counts or normalized pcts
-    """
-    conversation_roots = df.hearing_id.unique()
-    transition_counts_clusters = compute_transition_counts(
-        df, state_label, conversation_roots, utterance_type
-    )
-
-    if not normalized:
-        display(transition_counts_clusters)
-
-        ax = sns.heatmap(
-            transition_counts_clusters,
-            center=False,
-            annot=True,
-            linewidths=0.5,
-            cmap="YlGnBu",
-            fmt="g",
-        )
-        ax.xaxis.tick_top()
-        ax.tick_params(length=0)
-
-    else:
-        transition_counts_clusters_states_only = mat_states_only(
-            transition_counts_clusters
-        )
-        norm_mat_clusters = mat_normalized_rows(
-            transition_counts_clusters_states_only
-        )
-
-        display(norm_mat_clusters)
-
-        ax = sns.heatmap(
-            norm_mat_clusters,
-            center=False,
-            annot=True,
-            linewidths=0.5,
-            cmap="YlGnBu",
-        )
-        ax.xaxis.tick_top()
-        ax.tick_params(length=0)
