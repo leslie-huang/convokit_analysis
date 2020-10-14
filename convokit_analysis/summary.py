@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-from IPython.display import display
 from typing import Dict, List
 from convokit_analysis.utils import match_qa_pairs, subset_df
 
@@ -21,19 +20,7 @@ def plot_questions_by_recipient(
 
     if recipients:
         matched_qas = matched_qas[matched_qas["group_a"].isin(recipients)]
-
-    if question_categories:
-        matched_qas = matched_qas[
-            matched_qas["q_cluster"].isin(question_categories)
-        ]
-        question_labels = question_categories
-    else:
-        question_labels = list(range(k))
-
-    if cluster_labels:
-        legend_labels = [cluster_labels[i] for i in question_labels]
-    else:
-        legend_labels = question_labels
+        # this doesn't affect pcts so we can do it first
 
     matched_qas.rename(
         {
@@ -55,11 +42,28 @@ def plot_questions_by_recipient(
 
     grouped_pct.drop(["totals"], axis=1, inplace=True)
 
+    # can't drop until after the percents were calculated
+    grouped_pct.columns = grouped_pct.columns.droplevel(level=0)
+    if question_categories:
+        grouped_pct = grouped_pct[question_categories]
+        question_labels = question_categories
+    else:
+        question_labels = list(range(k))
+
+    if cluster_labels:
+        legend_labels = [cluster_labels[i] for i in question_labels]
+    else:
+        legend_labels = question_labels
+
     grouped_pct.plot.bar(stacked=False)
-    plt.legend(legend_labels, title="Question categories", loc="upper left")
+    plt.legend(
+        legend_labels,
+        title="Question categories",
+        loc="upper left",
+        bbox_to_anchor=(1.05, 1),
+    )
     plt.ylabel("Proportion of Questions")
     plt.xlabel("")
-    plt.tight_layout()
     plt.savefig(filename, bbox_inches="tight")
     plt.show()
     plt.close()
@@ -147,6 +151,7 @@ def generate_grouped_plots(
         grouped = subset_df(grouped, cluster_subset, group_subset)
         grouped.rename(cluster_labels, axis="columns", inplace=True)
         grouped.plot.bar(stacked=False)
+    plt.legend(bbox_to_anchor=(1.05, 1))
 
-    plt.show()
     plt.savefig(os.path.join(savedir, fn))
+    plt.show()
