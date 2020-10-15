@@ -11,6 +11,7 @@ plt.style.use(["science", "grid"])
 def generate_qa_transition_matrix(
     df: pd.DataFrame,
     cluster_labels: Dict = {},
+    answer_labels: Dict = {},
     normalized: bool = True,
     fn: str = "mat.pdf",
 ):
@@ -27,6 +28,13 @@ def generate_qa_transition_matrix(
         axis_labels = ["unassigned"] + list(cluster_labels.values())
     else:
         axis_labels = ["unassigned"] + sorted(matched_qas.a_cluster.unique())
+
+    if answer_labels:
+        answer_axis_labels = ["unassigned"] + list(answer_labels.values())
+    else:
+        answer_axis_labels = ["unassigned"] + sorted(
+            matched_qas.a_cluster.unique()
+        )
 
     mat = matched_qas.groupby(["q_cluster", "a_cluster"]).count().unstack()
     mat = mat.fillna(0)
@@ -55,7 +63,7 @@ def generate_qa_transition_matrix(
     ax.set_ylabel("Question cluster", fontsize=30)
     ax.set_xlabel("Answer cluster", fontsize=30)
     ax.set_xticklabels(
-        axis_labels,
+        answer_axis_labels,
         rotation=45,
         horizontalalignment="right",
         fontdict={"fontsize": 24},
