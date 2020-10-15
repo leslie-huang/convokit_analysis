@@ -62,7 +62,7 @@ def plot_questions_by_recipient(
         loc="upper left",
         bbox_to_anchor=(1.05, 1),
     )
-    plt.ylabel("Proportion of Questions")
+    plt.ylabel("Percent of Questions")
     plt.xlabel("")
     plt.savefig(filename, bbox_inches="tight")
     plt.show()
