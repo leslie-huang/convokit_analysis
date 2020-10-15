@@ -14,9 +14,16 @@ def plot_questions_by_recipient(
     question_categories: List[int] = [],
     cluster_labels: Dict = {},
     filename: str = "plot.pdf",
+    from_inquiry_only: bool = False,
 ):
+    """
+    Plots the kinds of questions RECEIVED by groups
+    """
     matched_qas = match_qa_pairs(df, include_group=True)
     matched_qas.drop(["a_cluster"], axis=1, inplace=True)
+
+    if from_inquiry_only:
+        matched_qas = matched_qas[matched_qas["group_q"] == "inquiry"]
 
     if recipients:
         matched_qas = matched_qas[matched_qas["group_a"].isin(recipients)]
@@ -78,6 +85,9 @@ def group_by_cluster_and_speaker(
     fn: str = "grouped.csv",
 ):
     """
+    Plots the questions or answers
+    SPOKEN by the specified group
+
     @param df dataframe of results
     @param k number of clusters
     @param cluster_labels optional dict mapping int cluster nums to labels
