@@ -79,8 +79,6 @@ def plot_questions_by_recipient(
     plt.set_xlabel("")
     plt.set_xticklabels(formatted_xlabels)
     plt.figure.savefig(filename, bbox_inches="tight")
-    plt.show()
-    plt.close()
 
 
 def group_by_cluster_and_speaker(
@@ -177,6 +175,6 @@ def generate_grouped_plots(
 
     plt.legend(bbox_to_anchor=(1.05, 1))
     plt.set_xticklabels(formatted_xlabels)
+    plt.set_ylabel(f"Percent of {utterance_subset.title()}")
 
     plt.figure.savefig(os.path.join(savedir, fn))
-    plt.show()
