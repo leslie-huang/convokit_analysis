@@ -75,10 +75,10 @@ def plot_questions_by_recipient(
         loc="upper left",
         bbox_to_anchor=(1.05, 1),
     )
-    plt.ylabel("Percent of Questions")
-    plt.xlabel("")
+    plt.set_ylabel("Percent of Questions")
+    plt.set_xlabel("")
     plt.set_xticklabels(formatted_xlabels)
-    plt.savefig(filename, bbox_inches="tight")
+    plt.figure.savefig(filename, bbox_inches="tight")
     plt.show()
     plt.close()
 
@@ -176,5 +176,5 @@ def generate_grouped_plots(
     plt.legend(bbox_to_anchor=(1.05, 1))
     plt.set_xticklabels(formatted_xlabels)
 
-    plt.savefig(os.path.join(savedir, fn))
+    plt.figure.savefig(os.path.join(savedir, fn))
     plt.show()
