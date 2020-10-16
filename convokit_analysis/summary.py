@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from typing import Dict, List
 from convokit_analysis.utils import match_qa_pairs, subset_df
+from textwrap import wrap
 
 plt.style.use(["science", "grid"])
 
@@ -51,6 +52,7 @@ def plot_questions_by_recipient(
 
     # can't drop until after the percents were calculated
     grouped_pct.columns = grouped_pct.columns.droplevel(level=0)
+
     if question_categories:
         grouped_pct = grouped_pct[question_categories]
         question_labels = question_categories
@@ -62,7 +64,11 @@ def plot_questions_by_recipient(
     else:
         legend_labels = question_labels
 
-    grouped_pct.plot.bar(stacked=False)
+    formatted_xlabels = [
+        "\n".join(wrap(i, 20)) for i in grouped_pct.index.tolist()
+    ]
+
+    plt = grouped_pct.plot.bar(stacked=False)
     plt.legend(
         legend_labels,
         title="Question categories",
@@ -71,6 +77,7 @@ def plot_questions_by_recipient(
     )
     plt.ylabel("Percent of Questions")
     plt.xlabel("")
+    plt.set_xticklabels(formatted_xlabels)
     plt.savefig(filename, bbox_inches="tight")
     plt.show()
     plt.close()
@@ -155,13 +162,19 @@ def generate_grouped_plots(
         speaker_pct.drop(["totals"], axis=1, inplace=True)
         speaker_pct = subset_df(speaker_pct, cluster_subset, group_subset)
         speaker_pct.rename(cluster_labels, axis="columns", inplace=True)
-        speaker_pct.plot.bar(stacked=False)
+        plt = speaker_pct.plot.bar(stacked=False)
     else:
         grouped.drop(["totals"], axis=1, inplace=True)
         grouped = subset_df(grouped, cluster_subset, group_subset)
         grouped.rename(cluster_labels, axis="columns", inplace=True)
-        grouped.plot.bar(stacked=False)
+        plt = grouped.plot.bar(stacked=False)
+
+    formatted_xlabels = [
+        "\n".join(wrap(i, 20)) for i in grouped.index.tolist()
+    ]
+
     plt.legend(bbox_to_anchor=(1.05, 1))
+    plt.set_xticklabels(formatted_xlabels)
 
     plt.savefig(os.path.join(savedir, fn))
     plt.show()
