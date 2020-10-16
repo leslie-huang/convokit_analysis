@@ -107,9 +107,11 @@ def group_by_cluster_and_speaker(
     if utterance_subset == "question":
         new_df = df.loc[df["is_question"]]
         new_df = new_df[["q_cluster", "group", "speaker"]]
+        new_df = new_df[new_df.q_cluster != -1.0]
     elif utterance_subset == "answer":
         new_df = df.loc[df["is_answer"]]
         new_df = new_df[["a_cluster", "group", "speaker"]]
+        new_df = new_df[new_df.a_cluster != -1.0]
 
     new_df.rename(
         {"q_cluster": "cluster", "a_cluster": "cluster"},
